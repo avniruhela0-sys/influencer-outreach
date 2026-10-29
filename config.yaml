@@ -1,0 +1,76 @@
+# ---- Campaign: who is reaching out and what they offer (EDIT THIS) ----
+campaign:
+  brand_name: "YourBrand"
+  brand_description: "a skincare brand making simple, dermatologist-tested products"
+  collaboration_type: "UGC content creation"   # sponsorship | affiliate campaign | UGC content creation | brand ambassador | paid product placement | barter
+  offer: "free product kit plus a paid UGC fee"
+  sender_name: "Your Name"
+  sender_role: "Partnerships, YourBrand"
+  optout_line: "If you'd rather not hear from us, just reply \"no thanks\" and we won't contact you again."
+
+# ---- Discovery ----
+discovery:
+  category: fashion_beauty
+  search_modes: [channel, video]      # channel search + recent-video search (video search surfaces smaller creators)
+  region_codes: ["US"]
+  pages_per_query: 2                  # 50 results/page, 100 quota units per page
+  video_search_days: 90
+  max_candidates: 300
+  recent_videos_sampled: 10
+
+# ---- Filtering ----
+filters:
+  min_followers: 5000
+  max_followers: 100000
+  min_engagement_rate: 2.0            # percent, mean of (likes+comments)/views over sampled videos
+  max_days_since_last_upload: 60
+  min_recent_videos: 5
+  min_keyword_matches: 3              # distinct niche keywords found in channel text + recent videos
+  allowed_countries: []               # e.g. ["US","GB","IN"]; empty = any
+  require_known_country: false        # if true, channels with no country set fail
+
+categories:
+  fashion_beauty:
+    discovery_keywords:
+      - skincare routine
+      - makeup tutorial
+      - get ready with me
+      - fashion haul
+      - outfit ideas
+      - beauty review
+      - hair care routine
+      - style lookbook
+    keywords:
+      - skincare
+      - makeup
+      - beauty
+      - fashion
+      - outfit
+      - style
+      - haircare
+      - hair care
+      - lookbook
+      - grwm
+      - get ready with me
+      - haul
+      - cosmetics
+      - foundation
+      - lipstick
+      - serum
+      - moisturizer
+      - thrift
+      - wardrobe
+      - ootd
+    blocklist:        # brand-safety: any hit in channel title/description/recent video titles fails
+      - gambling
+      - casino
+      - betting
+      - adult
+      - 18+
+      - nsfw
+      - forex signals
+      - get rich quick
+
+sending:
+  max_emails_per_run: 25
+  delay_seconds: 20
