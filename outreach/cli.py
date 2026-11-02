@@ -14,9 +14,8 @@ def _yt(cfg):
 
 
 def _llm():
-    from .personalization import AnthropicLLM
-    require_env("ANTHROPIC_API_KEY")
-    return AnthropicLLM()
+    from .personalization import get_llm
+    return get_llm()
 
 
 def cmd_discover(a, cfg, db):

@@ -54,6 +54,61 @@ class AnthropicLLM:
         return "".join(b.text for b in resp.content if getattr(b, "type", "") == "text")
 
 
+class HTTPLLM:
+    """Free-tier friendly providers over plain REST (no extra dependency): Gemini and Groq."""
+
+    def __init__(self, provider: str, api_key: str, model: str | None = None, session=None):
+        import requests
+        self.provider, self.key = provider, api_key
+        self.session = session or requests.Session()
+        defaults = {"gemini": "gemini-2.5-flash", "groq": "llama-3.3-70b-versatile"}
+        self.model = model or defaults[provider]
+
+    def generate(self, system: str, user: str) -> str:
+        import time
+        for attempt in range(4):
+            if self.provider == "gemini":
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{self.model}:generateContent"
+                r = self.session.post(url, params={"key": self.key}, timeout=60, json={
+                    "systemInstruction": {"parts": [{"text": system}]},
+                    "contents": [{"role": "user", "parts": [{"text": user}]}],
+                    "generationConfig": {"temperature": 0.8, "responseMimeType": "application/json"}})
+            else:  # groq (OpenAI-compatible)
+                r = self.session.post("https://api.groq.com/openai/v1/chat/completions", timeout=60,
+                                      headers={"Authorization": f"Bearer {self.key}"},
+                                      json={"model": self.model, "temperature": 0.8,
+                                            "response_format": {"type": "json_object"},
+                                            "messages": [{"role": "system", "content": system},
+                                                         {"role": "user", "content": user}]})
+            if r.status_code == 429 or r.status_code >= 500:  # free tiers rate-limit: back off and retry
+                time.sleep(5 * (attempt + 1))
+                continue
+            if r.status_code != 200:
+                raise RuntimeError(f"{self.provider} HTTP {r.status_code}: {r.text[:300]}")
+            data = r.json()
+            if self.provider == "gemini":
+                return "".join(p.get("text", "") for p in data["candidates"][0]["content"]["parts"])
+            return data["choices"][0]["message"]["content"]
+        raise RuntimeError(f"{self.provider}: rate limited after retries")
+
+
+def get_llm() -> "LLM":
+    """Choose provider via LLM_PROVIDER = gemini | groq | anthropic (default: whichever key is set)."""
+    env = os.environ.get
+    provider = (env("LLM_PROVIDER") or "").lower()
+    if not provider:
+        provider = next((p for p, k in (("gemini", "GEMINI_API_KEY"), ("groq", "GROQ_API_KEY"),
+                                        ("anthropic", "ANTHROPIC_API_KEY")) if env(k)), "")
+    if provider == "anthropic":
+        return AnthropicLLM(env("LLM_MODEL"))
+    if provider in ("gemini", "groq"):
+        key = env(f"{provider.upper()}_API_KEY")
+        if not key:
+            raise SystemExit(f"Set {provider.upper()}_API_KEY in .env")
+        return HTTPLLM(provider, key, env("LLM_MODEL"))
+    raise SystemExit("No LLM key found. Set GEMINI_API_KEY (free) or GROQ_API_KEY (free) or ANTHROPIC_API_KEY in .env")
+
+
 def word_count(text: str) -> int:
     """Conservative count: the stricter of whitespace-split and regex-word counts must be in range."""
     return max(len(text.split()), len(re.findall(r"[\w'’]+", text)))

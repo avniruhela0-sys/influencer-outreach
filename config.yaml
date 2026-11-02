@@ -1,13 +1,11 @@
 # ---- Campaign: who is reaching out and what they offer (EDIT THIS) ----
 campaign:
-  brand_name: "YourBrand"
+  brand_name: "GlowLab"
   brand_description: "a skincare brand making simple, dermatologist-tested products"
-  collaboration_type: "UGC content creation"   # sponsorship | affiliate campaign | UGC content creation | brand ambassador | paid product placement | barter
+  collaboration_type: "UGC content creation"
   offer: "free product kit plus a paid UGC fee"
-  sender_name: "Your Name"
-  sender_role: "Partnerships, YourBrand"
-  optout_line: "If you'd rather not hear from us, just reply \"no thanks\" and we won't contact you again."
-
+  sender_name: "Avni Ruhela"
+  sender_role: "Partnerships, GlowLab"
 # ---- Discovery ----
 discovery:
   category: fashion_beauty
@@ -19,15 +17,16 @@ discovery:
   recent_videos_sampled: 10
 
 # ---- Filtering ----
+
 filters:
   min_followers: 5000
   max_followers: 100000
-  min_engagement_rate: 2.0            # percent, mean of (likes+comments)/views over sampled videos
-  max_days_since_last_upload: 60
+  min_engagement_rate: 1.5
+  max_days_since_last_upload: 90
   min_recent_videos: 5
-  min_keyword_matches: 3              # distinct niche keywords found in channel text + recent videos
-  allowed_countries: []               # e.g. ["US","GB","IN"]; empty = any
-  require_known_country: false        # if true, channels with no country set fail
+  min_keyword_matches: 2
+  allowed_countries: []
+  require_known_country: false      # if true, channels with no country set fail
 
 categories:
   fashion_beauty:

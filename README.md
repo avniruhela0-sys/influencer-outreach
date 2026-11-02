@@ -94,3 +94,18 @@ Batch API calls (50 ids/request), resumable state in SQLite (swap for Postgres b
 * Engagement uses recent public likes/comments; channels hiding likes can't be scored.
 * Niche relevance is keyword-based (an embedding/LLM classifier is the natural upgrade).
 * Comply with CAN-SPAM/GDPR/local law: honor opt-outs (`suppress`), send only to business contacts creators publish.
+
+
+## Demo
+- Demo video: https://drive.google.com/file/d/1mtgCsa8mJNKKT0UUP7RsRwnBRyyrytoz/view?usp=sharing
+
+## Test-run results
+- Discovered: 326 channels (YouTube, fashion & beauty keywords)
+- Shortlisted after automated filtering: 14
+- Removed at manual review: 4 (topic-named channels, a brand account, an off-niche channel)
+- Approved for outreach: 10
+- Contact email found: 1 of 14 (rest marked "Not Found"; no emails guessed)
+- Messages generated: 14 email + DM pairs (LLM: Gemini)
+- Sending: dry-run (1 email simulated, 9 skipped because no email was found)
+- Instagram handles found: 0, so DMs are provided as copy-ready text for manual sending
+- Outputs: `data/exports/` (dataset, enriched profiles, messages, outreach tracker)
