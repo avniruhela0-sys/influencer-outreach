@@ -6,6 +6,20 @@ Default niche: **Fashion & Beauty** on **YouTube** (fully configurable in `confi
 > Data integrity: every influencer, metric and email comes from live public sources. Nothing is generated or guessed.
 > Missing data is written as `Not Found` / `Not Available` / `Hidden`. The unit-test fixtures are synthetic and are never written to the dataset.
 
+## Demo
+- Demo video: https://drive.google.com/file/d/1mtgCsa8mJNKKT0UUP7RsRwnBRyyrytoz/view?usp=sharing
+
+## Test-run results
+- Discovered: 326 channels (YouTube, fashion & beauty keywords)
+- Shortlisted after automated filtering: 14
+- Removed at manual review: 4 (topic-named channels, a brand account, an off-niche channel)
+- Approved for outreach: 10
+- Contact email found: 1 of 14 (rest marked "Not Found"; no emails guessed)
+- Messages generated: 14 email + DM pairs (LLM: Gemini)
+- Sending: dry-run (1 email simulated, 9 skipped because no email was found)
+- Instagram handles found: 0, so DMs are provided as copy-ready text for manual sending
+- Outputs: `data/exports/` (dataset, enriched profiles, messages, outreach tracker)
+
 ## Architecture
 ```
 YouTube Data API ─► discovery.py ─► SQLite (data/outreach.db)
@@ -14,7 +28,7 @@ YouTube Data API ─► discovery.py ─► SQLite (data/outreach.db)
                                         │ shortlisted only
           enrichment.py (email / links / audience fields)
                                         │
-          personalization.py (Claude → email + DM, validated)
+          personalization.py (LLM: Gemini → email + DM, validated)
                                         │
           review (human approve/reject)  ◄── gate: only "approved" is ever sent
                                         │
@@ -24,18 +38,19 @@ YouTube Data API ─► discovery.py ─► SQLite (data/outreach.db)
 ```
 
 ## Tech stack / tools
-Python 3.10+, `requests`, `BeautifulSoup4`, `PyYAML`, SQLite, **YouTube Data API v3**, **Anthropic API (Claude)**, SMTP (Gmail app password), pytest, GitHub Actions.
+Python 3.9+, `requests`, `BeautifulSoup4`, `PyYAML`, SQLite, **YouTube Data API v3**, **Google Gemini API (free tier; pluggable with Groq/Claude)**, SMTP (Gmail app password), pytest.
 
 ## Setup
 ```bash
 git clone <your-repo-url> && cd influencer-outreach
-python -m venv .venv && source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # fill in YOUTUBE_API_KEY and ANTHROPIC_API_KEY (SMTP only for live sending)
+cp .env.example .env          # fill in YOUTUBE_API_KEY and GEMINI_API_KEY (SMTP only for live sending)
 # edit config.yaml -> campaign: (brand, offer, sender)
-pytest -q                     # 19 tests
+pytest -q
 ```
 YouTube key: Google Cloud Console → enable *YouTube Data API v3* → Credentials → API key (free quota 10,000 units/day).
+Gemini key (free): https://aistudio.google.com/apikey
 
 ## Run
 ```bash
@@ -56,14 +71,17 @@ For each keyword in `categories.<niche>.discovery_keywords` the system runs YouT
 
 ## Filtering logic (`filtering.py`)
 Every channel gets a per-check verdict stored in the DB and exported:
+
 | Check | Rule (configurable) |
 |---|---|
 | follower_range | 5,000–100,000; hidden count = fail |
-| engagement_rate | mean of (likes+comments)/views over last ≤10 videos ≥ 2.0% (videos with hidden likes/0 views excluded) |
-| activity | ≥5 recent videos, last upload ≤60 days ago |
-| niche_relevance | ≥3 distinct niche keywords in channel name/description/recent titles/tags |
+| engagement_rate | mean of (likes+comments)/views over last ≤10 videos ≥ 1.5% (videos with hidden likes/0 views excluded) |
+| activity | ≥5 recent videos, last upload ≤90 days ago |
+| niche_relevance | ≥2 distinct niche keywords in channel name/description/recent titles/tags |
 | brand_safety | no blocklisted terms (gambling, adult, …) |
 | geography | optional allow-list; unknown country passes unless `require_known_country` |
+
+Thresholds were relaxed after a first run (2.0% / 60 days / 3 keywords) shortlisted only 7 channels; all values are configurable in `config.yaml`.
 
 New niches: add a block under `categories:` and change `discovery.category`.
 
@@ -71,7 +89,7 @@ New niches: add a block under `categories:` and change `discovery.category`.
 Only shortlisted profiles. Email is **extracted, never generated**: (1) public channel description, (2) websites/link-in-bio pages linked from it (`/contact`, `/about`; `robots.txt` respected, max 3 pages, identifying User-Agent). Also extracts Instagram/TikTok handles and website. Audience age/gender are `Not Available` (not exposed by public APIs); geography = channel country when set. YouTube's "View email address" button is behind a CAPTCHA and is deliberately **not** bypassed, so expect many `Not Found` emails.
 
 ## AI model & prompt
-Claude (`LLM_MODEL`, default `claude-sonnet-5-5`) with the system prompt in `personalization.py`. Input = campaign config + a fact sheet per creator (name, followers, engagement, themes, recent video titles, about-text excerpt). The model must use only those facts and return JSON `{email_subject, email_body, instagram_dm, signals_used}`.
+Google Gemini (free tier, `gemini-2.5-flash` by default) via REST API. The provider is pluggable (`LLM_PROVIDER` in `.env`: gemini | groq | anthropic) and the system prompt lives in `personalization.py`. Input = campaign config + a fact sheet per creator (name, followers, engagement, themes, recent video titles, about-text excerpt). The model must use only those facts and return JSON `{email_subject, email_body, instagram_dm, signals_used}`.
 
 ## Personalization logic
 Messages are generated per influencer (no fixed template). Programmatic validation enforces email 60–90 words (strict of two counting methods), DM 15–30 words, no links in DM; on failure the model is re-prompted with the exact problem (3 attempts), otherwise the influencer is marked failed rather than given a bad message. `signals_used` is stored for the reviewer to audit.
@@ -93,19 +111,7 @@ Batch API calls (50 ids/request), resumable state in SQLite (swap for Postgres b
 * Many creators publish no email → `Not Found`. Audience demographics unavailable.
 * Engagement uses recent public likes/comments; channels hiding likes can't be scored.
 * Niche relevance is keyword-based (an embedding/LLM classifier is the natural upgrade).
+* The LLM only sees video titles and a short channel description, so remarks about a creator's tone or style are inferred; the human review step exists to catch such claims.
+* Filtering thresholds were tuned for a small test run and keyword matching can misclassify generic topic channels (4 were removed at manual review).
 * Comply with CAN-SPAM/GDPR/local law: honor opt-outs (`suppress`), send only to business contacts creators publish.
 
-
-## Demo
-- Demo video: https://drive.google.com/file/d/1mtgCsa8mJNKKT0UUP7RsRwnBRyyrytoz/view?usp=sharing
-
-## Test-run results
-- Discovered: 326 channels (YouTube, fashion & beauty keywords)
-- Shortlisted after automated filtering: 14
-- Removed at manual review: 4 (topic-named channels, a brand account, an off-niche channel)
-- Approved for outreach: 10
-- Contact email found: 1 of 14 (rest marked "Not Found"; no emails guessed)
-- Messages generated: 14 email + DM pairs (LLM: Gemini)
-- Sending: dry-run (1 email simulated, 9 skipped because no email was found)
-- Instagram handles found: 0, so DMs are provided as copy-ready text for manual sending
-- Outputs: `data/exports/` (dataset, enriched profiles, messages, outreach tracker)
